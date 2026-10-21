@@ -66,6 +66,14 @@ key grid in reading order with Up/Down (`hasHorizontalKeys()`); every key stays
 reachable from one button pair. That fallback keys off the profile, so it switches
 itself off on any board that does wire a horizontal key.
 
+### Update (Gild): the PWR key is on GPIO1
+
+A later probe with GPIO1 configured as INPUT_PULLUP showed it going LOW for
+exactly as long as the case-labelled PWR key was held, with the AXP2101 PWRON
+IRQ bits in INTSTS2 (0x49) setting at the same time (0x04 on press, 0x01/0x02
+for short/long press). The profile now maps `power = 1`; BOOT stays Back. The
+original note is kept below for history.
+
 ### The case-labelled PWR key is not wired to the CPU (as far as bring-up could tell)
 
 The board has a fifth, PWR-labelled key that the firmware cannot see. It is absent

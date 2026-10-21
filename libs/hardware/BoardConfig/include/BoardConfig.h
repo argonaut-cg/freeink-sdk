@@ -1655,9 +1655,14 @@ constexpr BoardProfile WS_EPAPER_397 = {
     //
     // GPIO38 is NOT a button: it is the AXP2101's active-low interrupt output,
     // which sits LOW for as long as any PMIC interrupt is pending. Mapping it as
-    // a key reads as one held down forever. The case-labelled PWR key has not
-    // been located yet — see docs/waveshare-epaper-397-support.md.
-    {0, 5, PIN_UNASSIGNED, PIN_UNASSIGNED, 4, 6, 0, false},
+    // a key reads as one held down forever.
+    //
+    // Gild: the case-labelled PWR key IS visible on GPIO1 (active-low, needs the
+    // internal pull-up): confirmed on a unit with a button-test screen -- GPIO1
+    // goes LOW for exactly as long as PWR is held, alongside the AXP2101 PWRON
+    // IRQ bits in INTSTS2 (0x49). So PWR is the power key (sleep/wake, RTC-
+    // capable for deep-sleep wake) and BOOT is Back only.
+    {0, 5, PIN_UNASSIGNED, PIN_UNASSIGNED, 4, 6, 1, false},
     PIN_UNASSIGNED,  // batteryAdc: none — the AXP2101 reports SoC over I2C
     PIN_UNASSIGNED,  // batteryChargeStatus: PMIC register, not a pin
     2.0f,
