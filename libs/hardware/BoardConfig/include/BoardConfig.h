@@ -296,7 +296,7 @@
 #define FREEINK_CAP_COLOR (FREEINK_DEVICE_M5)
 #endif
 #ifndef FREEINK_CAP_AUDIO
-#define FREEINK_CAP_AUDIO (FREEINK_DEVICE_MURPHY || FREEINK_DEVICE_M5 || FREEINK_DEVICE_METALIO_EINK4)
+#define FREEINK_CAP_AUDIO (FREEINK_DEVICE_MURPHY || FREEINK_DEVICE_M5 || FREEINK_DEVICE_METALIO_EINK4 || FREEINK_DEVICE_WS397)
 #endif
 // Microphone capture (PDM or module I2S). Separate from FREEINK_CAP_AUDIO (output): the
 // Sticky has a PDM mic but no output codec. The Microphone lib compiles its
@@ -887,6 +887,14 @@ constexpr AudioConfig MURPHY_AUDIO = {AudioOutput::I2sEs8388, 40, 39, 41,   42, 
 // (0x40) is not driven.
 constexpr AudioConfig M5_PAPERCOLOR_AUDIO = {
     AudioOutput::I2sEs8311, 40, 41, 38, PIN_UNASSIGNED, 45, true, 46, 3, 2, 0x18, PIN_UNASSIGNED};
+
+// Waveshare ESP32-S3-ePaper-3.97 audio, from the vendor's 01_Audio_Test example
+// (i2s.setPins(BCK 14, WS 47, DOUT 48, DIN 21, MCK 13); PA_CTRL 39 drives the
+// NS4150B amp): ES8311 at 7-bit 0x18 on the board's single I2C bus (SDA41/SCL42,
+// shared with the AXP2101 and RTC). Like the PaperColor entry, the codec is
+// clocked from BCLK (the shared ES8311 init), so MCLK stays unwired here.
+constexpr AudioConfig WS397_AUDIO = {
+    AudioOutput::I2sEs8311, 14, 47, 48, PIN_UNASSIGNED, PIN_UNASSIGNED, true, 39, 41, 42, 0x18, PIN_UNASSIGNED};
 
 // Sticky has no output codec (PDM mic in only) — just the LEDC buzzer on GPIO48,
 // driven by the Buzzer lib. output=None so hasAudio() stays false; the buzzer
@@ -1664,7 +1672,7 @@ constexpr BoardProfile WS_EPAPER_397 = {
     PIN_UNASSIGNED,  // usbDetect: PMIC VBUS status, not a pin
     NO_TOUCH,
     NO_FRONTLIGHT,
-    NO_AUDIO,  // ES8311 codec + NS4150B amp are wired but unused by the reader
+    WS397_AUDIO,  // ES8311 codec + NS4150B amp (Gild Focus chime)
     NO_LEDS,
     NO_FLIP,
     {16, 17, 15, 7, 8, 18, 4},  // SDMMC 4-bit: CLK16 CMD17 D0=15 D1=7 D2=8 D3=18
