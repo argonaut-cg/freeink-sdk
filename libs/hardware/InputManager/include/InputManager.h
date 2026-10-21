@@ -51,6 +51,10 @@ class InputManager {
   // otherwise a press shorter than the poll period lands in a single sample and
   // is dropped.
   bool isDebouncePending() const { return lastState != currentState; }
+#if FREEINK_DEVICE_WS397
+  // Gild: PWR's own debounce on the Waveshare 3.97 (see InputManager.cpp).
+  uint8_t filterWs397Power(uint8_t state, unsigned long currentTime);
+#endif
 
   // Duration between the first button press and final release.
   unsigned long getHeldTime() const;

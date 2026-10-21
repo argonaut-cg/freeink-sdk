@@ -551,7 +551,11 @@ void InputManager::update() {
     return;
   }
 
+#if FREEINK_DEVICE_WS397
+  const uint8_t state = filterWs397Power(getState(), currentTime);
+#else
   const uint8_t state = getState();
+#endif
 
   // Debounce, asymmetrically: a press commits once the line has been quiet for
   // DEBOUNCE_DELAY, a release has to stay quiet for RELEASE_SETTLE_DELAY.
@@ -583,6 +587,37 @@ void InputManager::update() {
 }
 
 bool InputManager::isPressed(const uint8_t buttonIndex) const { return currentState & (1 << buttonIndex); }
+
+#if FREEINK_DEVICE_WS397
+// Gild: the Waveshare's PWR line (GPIO1) is shared with the AXP2101's PWRON
+// input and can flicker. The debounce above works on all keys at once, so one
+// flickering bit restarts the settle window on every poll and no other key
+// ever commits -- the whole device looks dead. PWR therefore gets its own
+// filter: it only counts as pressed after reading LOW on every quick sample for
+// kPowerSettleMs straight, and released after the same time HIGH. What reaches
+// the shared debounce changes once per real press.
+uint8_t InputManager::filterWs397Power(uint8_t state, const unsigned long currentTime) {
+  constexpr unsigned long kPowerSettleMs = 40;
+  constexpr uint8_t kPowerBit = 1u << BTN_POWER;
+  static bool rawLast = false;
+  static bool stable = false;
+  static unsigned long rawSince = 0;
+  bool raw = (state & kPowerBit) != 0;
+  if (raw) {
+    // A press must hold across several reads, not just the one getState() took.
+    for (int i = 0; i < 4 && raw; i++) {
+      delayMicroseconds(150);
+      raw = isPowerButtonPhysicallyPressed();
+    }
+  }
+  if (raw != rawLast) {
+    rawLast = raw;
+    rawSince = currentTime;
+  }
+  if (raw != stable && currentTime - rawSince >= kPowerSettleMs) stable = raw;
+  return static_cast<uint8_t>((state & ~kPowerBit) | (stable ? kPowerBit : 0));
+}
+#endif
 
 bool InputManager::isPowerButtonPhysicallyPressed() const {
   const int8_t pin = BoardConfig::ACTIVE.input.power;
