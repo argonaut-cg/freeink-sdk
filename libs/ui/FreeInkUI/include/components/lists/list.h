@@ -30,6 +30,9 @@ struct ListItem {
   // It shares the row's logical index and interaction value. Kept last so
   // existing aggregate initializers remain source-compatible.
   const char *sectionHeading = nullptr;
+  // Gild: starts a new group (like a section heading, but with no title) when
+  // the list draws grouped (ListProps::groupBorder).
+  bool groupStart = false;
 };
 
 struct ListNav;
@@ -185,6 +188,11 @@ struct ListProps {
   int16_t rowPaddingY = -1;
   // Draw toggle rows as outlined boxes with an inset fill when checked.
   bool toggleCheckbox = false;
+  // Gild: inset-grouped look. A rounded outline of this width is drawn around
+  // each run of rows between section headings (or ListItem::groupStart);
+  // 0 = none, 0xFF = inherit the theme's listGroupBorder.
+  uint8_t groupBorder = 0xFF;
+  uint8_t groupRadius = 16;
 };
 
 // Stateful companion to the immediate-mode list helpers in FreeInkUICore.h:
@@ -584,6 +592,18 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
   uint16_t consumedIndexes = 0; // item AND header indexes laid out from top
   bool selectedDrawn = false;
   bool previousWasRow = false;
+  // Gild: the group being drawn (top edge, bottom edge), closed with an outline.
+  const uint8_t groupBorder = props.groupBorder == 0xFF ? 0 : props.groupBorder;
+  int16_t groupTop = -1;
+  int16_t groupBottom = -1;
+  const auto closeGroup = [&]() {
+    if (groupBorder > 0 && groupTop >= 0 && groupBottom > groupTop) {
+      frame.target().stroke(Rect{rowArea.x, groupTop, rowArea.width, static_cast<int16_t>(groupBottom - groupTop)},
+                            Paint::solid(Color::Black), groupBorder, props.groupRadius);
+    }
+    groupTop = -1;
+    groupBottom = -1;
+  };
   for (uint16_t i = top; i < props.count; ++i) {
     // Stop before reading the next window entry. The size/layout work below
     // dereferences `item`, so checking after it would require callers that
@@ -603,6 +623,7 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
         props.rowProvider ? scratch : props.items[i - props.itemsWindowFirst];
     if (item.isHeader) {
       previousWasRow = false;
+      closeGroup();
       const int16_t pad = i != top ? props.sectionGap : 0;
       if (static_cast<int16_t>(cursorY + pad + headerH) > rowArea.bottom())
         break;
@@ -626,9 +647,10 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
     const int16_t itemH = layout.height;
     const int16_t subH = layout.subtitleHeight;
     const bool hasSectionHeading = item.sectionHeading != nullptr && item.sectionHeading[0] != '\0';
-    const int16_t sectionPad = hasSectionHeading && i != top ? props.sectionGap : 0;
+    const bool startsGroup = hasSectionHeading || (groupBorder > 0 && item.groupStart);
+    const int16_t sectionPad = startsGroup && i != top ? props.sectionGap : 0;
     const int16_t sectionH =
-        hasSectionHeading ? static_cast<int16_t>(sectionPad + headerH + rowGap) : 0;
+        hasSectionHeading ? static_cast<int16_t>(sectionPad + headerH + rowGap) : sectionPad;
     const bool partial = cursorY + sectionH + itemH > rowArea.bottom();
     const Rect previousClip = frame.target().clipRect();
     if (partial) {
@@ -646,6 +668,8 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
                                           static_cast<int16_t>(bottom - upper)}))
         break;
     }
+    if (startsGroup && !partial) closeGroup();
+    if (!hasSectionHeading && sectionPad > 0) cursorY = static_cast<int16_t>(cursorY + sectionPad);
     if (hasSectionHeading) {
       cursorY = static_cast<int16_t>(cursorY + sectionPad);
       Rect headerRow{static_cast<int16_t>(rowArea.x + sidePad), cursorY,
@@ -666,7 +690,11 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
         selectedDrawn = true;
     }
     Rect row{rowArea.x, cursorY, rowArea.width, itemH};
-    if (previousWasRow && !hasSectionHeading && props.separatorPaint.kind != PaintKind::None &&
+    if (!partial && groupBorder > 0) {
+      if (groupTop < 0) groupTop = row.y;
+      groupBottom = static_cast<int16_t>(row.y + itemH);
+    }
+    if (previousWasRow && !startsGroup && props.separatorPaint.kind != PaintKind::None &&
         rowArea.width > sidePad * 2) {
       frame.target().fill(
           Rect{static_cast<int16_t>(rowArea.x + sidePad), static_cast<int16_t>(row.y - (rowGap > 1 ? rowGap / 2 : 1)),
@@ -939,6 +967,8 @@ void list(Frame<MaxInteractions> &frame, Rect rect, const ListProps &props) {
       break;
     }
   }
+
+  closeGroup();
 
   if (props.scrollIndicator && consumedIndexes > 0 &&
       (top > 0 || consumedIndexes < props.count)) {

@@ -333,6 +333,14 @@ public:
     // the band's true edge.
     if (themed.rowInset < 0)
       themed.rowInset = theme_.listInset;
+    if (themed.groupBorder == 0xFF)
+      themed.groupBorder = theme_.listGroupBorder;
+    if (themed.groupBorder > 0) {
+      // Grouped: the outline separates sections, so headings go bare and the
+      // selection pill takes the group's corner radius.
+      themed.headerUnderline = false;
+      themed.groupRadius = theme_.listRowRadius > 0 ? theme_.listRowRadius : themed.groupRadius;
+    }
     return themed;
   }
 

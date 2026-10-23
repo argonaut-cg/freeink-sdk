@@ -664,6 +664,9 @@ struct ThemeTokens {
   int16_t listInset = 0; // horizontal inset of the rows (scroll indicator stays
                          // at the band edge)
   SelectionStyle listSelectionStyle = SelectionStyle::InvertFill;
+  // Gild: inset-grouped lists -- outline width around each section's rows
+  // (0 = plain list). Section headings lose their underline when set.
+  uint8_t listGroupBorder = 0;
   int16_t listScrollWidth = 3; // scroll indicator thickness
   uint8_t listScrollSide = 0;  // 0 = right edge, 1 = left edge
   // Inward offset of the scroll indicator from the band edge. Normally 0 (the
