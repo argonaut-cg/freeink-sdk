@@ -283,6 +283,12 @@ freeink::LgfxEpdConfig buildConfig() {
       grayDark,
       grayLight,
       true,  // grey columns live in the fast bank above
+      // cleanBankNeedsFreshBackground. The clean table above rail-normalizes
+      // (black, white, then the level), so two Half/Full refreshes in a row
+      // drove only the union of the old and new ink and both screens stood on
+      // the glass at once -- seen in Gild's Focus screens, which open with a
+      // clean refresh right after the screen-change one (Gild 0.9.2 on device).
+      true,
   };
 }
 
