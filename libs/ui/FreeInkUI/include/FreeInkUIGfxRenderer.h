@@ -223,6 +223,24 @@ class GfxRendererTarget final : public DrawTarget {
     return false;
   }
 
+  // Gild: a single line sits with its capitals centred in the rect, so two
+  // fonts side by side (a row's label and its smaller value, a header's title
+  // and clock next to the battery) share one visual middle. Centring each
+  // font's line box instead left a font with a tall line box hanging low --
+  // or, when the box was taller than the rect, pinned to the rect's top.
+  int singleLineTop(const int fontId, const Rect rect, const EpdFontFamily::Style epdStyle) const {
+    const int ascender = renderer.getFontAscenderSize(fontId);
+    int cap = ascender * 7 / 10;
+    const auto& fonts = renderer.getFontMap();
+    const auto font = fonts.find(fontId);
+    if (font != fonts.end()) {
+      const auto glyph = font->second.getGlyph(static_cast<uint32_t>('H'), epdStyle);
+      if (glyph && glyph->height > 0) cap = glyph->height;
+    }
+    const int baseline = rect.y + (rect.height + cap) / 2;
+    return baseline - ascender;
+  }
+
   void text(const Rect rect, const char* text, const TextStyle style) override {
     if (!text || rect.empty()) return;
     const int fontId = gfxFont(style.font);
@@ -304,13 +322,13 @@ class GfxRendererTarget final : public DrawTarget {
     // needed). Matters on e-paper list screens that rebuild every row per
     // repaint.
     if (renderer.getTextWidth(fontId, text, epdStyle) <= rect.width) {
-      drawAligned(text, rect.y + std::max(0, (rect.height - lh) / 2));
+      drawAligned(text, singleLineTop(fontId, rect, epdStyle));
       return;
     }
 
     if (maxLines == 1) {
       const std::string textLine = renderer.truncatedText(fontId, text, rect.width, epdStyle);
-      drawAligned(textLine.c_str(), rect.y + std::max(0, (rect.height - lh) / 2));
+      drawAligned(textLine.c_str(), singleLineTop(fontId, rect, epdStyle));
       return;
     }
 
